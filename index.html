@@ -1,0 +1,212 @@
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>jbgraug@gmail.com (Alto analytics test)</title>
+    <style rel="stylesheet">
+      html,
+      body.application {
+        margin: 0;
+        padding: 0;
+        min-width: 400px;
+        min-height: 300px;
+        height: 100%;
+        width: 100%;
+        color: white;
+        background-color: #3a3a3a;
+      }
+      .top-toolbar {
+        position: relative;
+        min-height: 50px;
+        display: flex;
+        flex-direction: row;
+        background-color: #3a3a3a;
+      }
+      .option-placeholder {
+        flex: 1 1;
+        display: flex;
+        align-items: center;
+        align-content: center;
+        justify-content: center;
+        text-align: center;
+        border: 1px solid grey;
+        min-height: 50px;
+        cursor: pointer;
+      }
+      .option-placeholder.option-selected:hover,
+      .option-placeholder:hover {
+        border-color: white;
+      }
+      .option-placeholder.option-selected {
+        background-color: #2244a1;
+        font-weight: bold;
+        text-decoration: underline;
+      }
+      .content {
+        background-color: grey;
+        position: relative;
+        margin: auto;
+        height: calc(100% - 50px);
+      }
+      .content p {
+        margin: auto;
+        top: 50%;
+        position: relative;
+        text-align: center;
+      }
+      .content p.selected-options:before {
+        content: "> ";
+      }
+      .content p.selected-options:after {
+        content: " <";
+      }
+      progress.progress-bar {
+        height: 3px;
+        width: 100%;
+        display: block;
+        border: none;
+      }
+      progress,
+      progress::-webkit-progress-bar {
+        background-color: white !important;
+        box-sizing: border-box;
+        color: white;
+      }
+      progress,
+      progress::-moz-progress-bar {
+        background-color: white !important;
+        box-sizing: border-box;
+        color: white;
+      }
+      progress::-webkit-progress-value {
+        background-color: red;
+      }
+      progress::-moz-progress-bar {
+        background-color: red !important;
+      }
+    </style>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
+  </head>
+  <body class="application">
+    <nav class="top-toolbar"></nav>
+    <progress class="progress-bar" value="0" max="100"></progress>
+    <div class="content">
+      <p>Currently selected:</p>
+      <p class="selected-options"></p>
+    </div>
+
+    <script lang="javascript">
+      'use strict'
+
+      var TIMEOUT = 3000
+      var DEFAULT_OPTIONS = ['Opt1', 'Opt2', 'Opt3'] // this could also be an {} but there no spec about uniqueness
+      var clearCurrentOption = null
+      var progressUpdateInterval = null
+      var optionCount = 0
+
+      function init(options) {
+        var toolbar$ = $('.top-toolbar')
+        var allOption$ = createOptionElement$({ text: 'all', click: selectOption, selected: true })
+        toolbar$.append(allOption$)
+
+        options.forEach(function(option) {
+          const option$ = createOptionElement$({ text: option, click: selectOption })
+          toolbar$.append(option$)
+        })
+
+        optionCount = options.length
+        updateContent('all')
+      }
+
+      function createOptionElement$(optionConfig) {
+        var option$ = $('<div>' + optionConfig.text + '</div>')
+          .addClass('option-placeholder')
+          .attr({ 'data-option': optionConfig.text })
+          .click(optionConfig.click)
+
+        if (optionConfig.selected) {
+          option$.addClass('option-selected')
+        }
+        return option$
+      }
+
+      function selectOption(event) {
+        console.time('select option total time')
+        var selectedOption = event.currentTarget.dataset['option']
+        var selectedOptions = $('.option-placeholder.option-selected')
+
+        if (selectedOption === 'all') {
+          selectAllOption()
+        } else {
+          selectOneOption(selectedOption)
+        }
+
+        var selectedOptionsLength = $('.option-placeholder.option-selected').length
+        var isAllSelected = selectedOptionsLength === optionCount
+        var isNoneSelected = selectedOptionsLength === 0
+        if (selectOption !== 'all' && (isAllSelected || isNoneSelected)) {
+          selectAllOption()
+        }
+
+        makeProgress(function() {
+          updateContent()
+          console.timeEnd('select option total time')
+        })
+      }
+
+      function selectAllOption() {
+        $('.option-placeholder').removeClass('option-selected')
+        $('.option-placeholder[data-option="all"]').addClass('option-selected')
+      }
+
+      function selectOneOption(selectedOption) {
+        $('.option-placeholder[data-option="all"]').removeClass('option-selected')
+        $('.option-placeholder[data-option="' + selectedOption + '"]').toggleClass('option-selected')
+      }
+
+      function updateContent() {
+        var options = []
+        $('.option-placeholder.option-selected')
+          .text(function(index, txt) {
+            options.push(txt)
+          })
+
+        $('.content p.selected-options').text(decodeURIComponent(options))
+      }
+
+      function getOptions() {
+        // decodeURIComponent is used to allow multiple words as option text
+        var hash = decodeURIComponent(location.hash.split('#')[1])
+        var options = hash && hash !== 'undefined' && hash.split('|')
+        return options
+      }
+
+      function makeProgress(callback) {
+        if (progressUpdateInterval) {
+          clearInterval(progressUpdateInterval)
+        }
+
+        var $progressBar = $('.progress-bar')
+        $progressBar.val(0)
+        $progressBar.attr('max', TIMEOUT)
+
+        var timeoutStep = TIMEOUT / 100
+        progressUpdateInterval = setInterval(function() {
+          if ($progressBar.val() < TIMEOUT - timeoutStep) {
+            $progressBar.val($progressBar.val() + timeoutStep)
+          } else {
+            $progressBar.val(0)
+            clearInterval(progressUpdateInterval)
+            if (typeof callback === 'function') {
+              callback()
+            }
+          }
+        }, timeoutStep)
+      }
+
+      // START
+      init(getOptions() || DEFAULT_OPTIONS)
+    </script>
+  </body>
+</html>
